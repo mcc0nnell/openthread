@@ -333,6 +333,7 @@ private:
         FrameData      mFrameData;
         ThreadLinkInfo mLinkInfo;
         Mac::Addresses mMacAddrs;
+        Mac::Address   mNeighborMacSource;
         Ip6::Headers   mIp6Headers;
         bool           mParsedIp6Headers;
     };

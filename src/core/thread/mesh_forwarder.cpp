@@ -1011,8 +1011,9 @@ void MeshForwarder::HandleReceivedFrame(Mac::RxFrame::ParseInfo &aFrameInfo)
 
     VerifyOrExit(mEnabled, error = kErrorInvalidState);
 
-    rxInfo.mFrameData = aFrameInfo.mPayload;
-    rxInfo.mMacAddrs  = aFrameInfo.mAddrs;
+    rxInfo.mFrameData          = aFrameInfo.mPayload;
+    rxInfo.mMacAddrs           = aFrameInfo.mAddrs;
+    rxInfo.mNeighborMacSource  = aFrameInfo.mAddrs.mSource;
 
     rxInfo.mLinkInfo.SetFrom(aFrameInfo);
 
@@ -1060,7 +1061,7 @@ void MeshForwarder::HandleFragment(RxInfo &aRxInfo)
     if (aRxInfo.IsLinkSecurityEnabled())
     {
         Neighbor *neighbor =
-            Get<NeighborTable>().FindNeighbor(aRxInfo.GetSrcAddr(), Neighbor::kInStateAnyExceptInvalid);
+            Get<NeighborTable>().FindNeighbor(aRxInfo.mNeighborMacSource, Neighbor::kInStateAnyExceptInvalid);
 
         if ((neighbor != nullptr) && (fragmentHeader.GetDatagramOffset() == 0))
         {
