@@ -213,6 +213,9 @@ jobs:
           retention-days: 1
 
   upload-coverage:
+    permissions:
+      contents: read
+      id-token: write
     needs:
       - unittests
       - examples
@@ -246,3 +249,4 @@ jobs:
         with:
           files: final.info
           fail_ci_if_error: true
+          use_oidc: true
