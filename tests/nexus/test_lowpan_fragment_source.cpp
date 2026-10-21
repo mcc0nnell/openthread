@@ -349,6 +349,62 @@ static void TestAddressTransitionAccepted(void)
     VerifyOrQuit(receiver->Get<MeshForwarder>().GetCounters().mRxSuccess > rxBefore);
 }
 
+
+static void TestReverseAddressTransitionAccepted(void)
+{
+    Core  nexus;
+    Node *receiver;
+    Node *relay;
+    Node *originA;
+    Node *originB;
+
+    InitializeNodes(nexus, receiver, relay, originA, originB);
+    OT_UNUSED_VARIABLE(relay);
+
+    OwnedPtr<Coap::Message> payload(BuildDiagnosticGetPayload(*originA));
+    const Ip6::Address     &source = originA->Get<Mle::Mle>().GetMeshLocalRloc();
+    const Ip6::Address     &dest   = receiver->Get<Mle::Mle>().GetMeshLocalRloc();
+    OwnedPtr<Message>       firstMessage(BuildIpMessage(*originA, source, dest, *payload));
+    OwnedPtr<Message>       nextMessage(BuildIpMessage(*originA, source, dest, *payload));
+    Mac::Addresses          shortAddresses;
+    Mac::Addresses          extendedAddresses;
+    Mac::Addresses          wrongExtendedAddresses;
+    uint16_t                receiverShort = receiver->Get<Mac::Mac>().GetShortAddress();
+    uint32_t                rxBefore      = receiver->Get<MeshForwarder>().GetCounters().mRxSuccess;
+
+    shortAddresses.mSource.SetShort(originA->Get<Mac::Mac>().GetShortAddress());
+    shortAddresses.mDestination.SetShort(receiverShort);
+    extendedAddresses.mSource.SetExtended(originA->Get<Mac::Mac>().GetExtAddress());
+    extendedAddresses.mDestination.SetShort(receiverShort);
+    wrongExtendedAddresses.mSource.SetExtended(originB->Get<Mac::Mac>().GetExtAddress());
+    wrongExtendedAddresses.mDestination.SetShort(receiverShort);
+
+    uint16_t nextOffset = PrepareAndDeliverDirect(*originA, *receiver, *firstMessage, shortAddresses);
+
+    VerifyOrQuit(nextOffset < firstMessage->GetLength());
+    firstMessage->SetOffset(nextOffset);
+
+    nextMessage->SetDatagramTag(firstMessage->GetDatagramTag());
+    nextMessage->SetOffset(nextOffset);
+
+    while (nextMessage->GetOffset() < nextMessage->GetLength())
+    {
+        nextOffset = PrepareAndDeliverDirect(*originB, *receiver, *nextMessage, wrongExtendedAddresses);
+        nextMessage->SetOffset(nextOffset);
+    }
+
+    VerifyOrQuit(receiver->Get<MeshForwarder>().GetCounters().mRxSuccess == rxBefore);
+
+    while (firstMessage->GetOffset() < firstMessage->GetLength())
+    {
+        nextOffset = PrepareAndDeliverDirect(*originA, *receiver, *firstMessage, extendedAddresses);
+        firstMessage->SetOffset(nextOffset);
+    }
+
+    nexus.AdvanceTime(50);
+    VerifyOrQuit(receiver->Get<MeshForwarder>().GetCounters().mRxSuccess > rxBefore);
+}
+
 } // namespace Nexus
 } // namespace ot
 
@@ -357,6 +413,7 @@ int main(void)
     ot::Nexus::TestSameOriginatorAccepted();
     ot::Nexus::TestDifferentOriginatorRejected();
     ot::Nexus::TestAddressTransitionAccepted();
+    ot::Nexus::TestReverseAddressTransitionAccepted();
     printf("All tests passed\n");
     return 0;
 }
